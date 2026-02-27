@@ -4,7 +4,36 @@ from discord.ext import commands, tasks
 import json
 import asyncio
 import os
-from scraper import get_vinted_items  # scraper async mais compatible Windows
+from scraper import get_vinted_items  # scraper async
+
+# ==============================
+# IMPORT POUR VENDEUR & DATE
+# ==============================
+from playwright.async_api import async_playwright
+
+async def get_item_details(url):
+    details = {"user": "N/A", "created_at": "N/A"}
+    try:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            await page.goto(url, timeout=60000)
+            await page.wait_for_selector("div[data-testid='profile-link']", timeout=5000)
+
+            # vendeur
+            seller_el = await page.query_selector("div[data-testid='profile-link']")
+            if seller_el:
+                details["user"] = await seller_el.inner_text()
+
+            # date d'ajout
+            date_el = await page.query_selector("time")
+            if date_el:
+                details["created_at"] = await date_el.get_attribute("datetime")
+
+            await browser.close()
+    except Exception as e:
+        print("❌ Erreur récupération détails :", e)
+    return details
 
 # ==============================
 # TOKEN
@@ -99,6 +128,13 @@ async def monitor_vinted():
         channel = bot.get_channel(CHANNELS[category])
         if not channel:
             continue
+
+        # ==============================
+        # Récupération vendeur & date
+        # ==============================
+        details = await get_item_details(item["url"])
+        item["user"]["login"] = details.get("user", "N/A")
+        item["created_at"] = details.get("created_at", "N/A")
 
         embed = discord.Embed(
             title=f"🔥 {item['title']}",
