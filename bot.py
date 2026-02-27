@@ -5,7 +5,7 @@ import json
 import asyncio
 import os
 
-TOKEN = os.getenv("MTQ3Njg5MjgyNDc0NTE1MjU0Mg.GUwHGa.S0zlP-rF3Icx7J3qbPLUZ--bKk3j5bEMIFF0x4")
+TOKEN = os.getenv("TON_TOKEN_ICI")
 
 CHANNELS = {
     "tshirt": 1476944679776944249,
@@ -107,3 +107,4 @@ async def on_ready():
 
 
 bot.run(TOKEN)
+
