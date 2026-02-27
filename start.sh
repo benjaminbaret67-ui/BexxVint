@@ -1,6 +1,3 @@
 #!/bin/bash
-# Installer les navigateurs Playwright à chaque lancement
-python -m playwright install chromium
-
-# Lancer le bot
+python -m playwright install chromium && pip install -r requirements.txt
 python bot.py
