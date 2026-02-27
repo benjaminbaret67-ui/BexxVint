@@ -4,7 +4,7 @@ from discord.ext import commands, tasks
 import json
 import asyncio
 import os
-from scraper import get_vinted_items  # scraper asynchrone mais compatible
+from scraper import get_vinted_items  # scraper async mais compatible Windows
 
 # ==============================
 # TOKEN
@@ -79,7 +79,6 @@ async def monitor_vinted():
     print("🔎 Recherche nouveaux items...")
 
     try:
-        # await get_vinted_items() reste async pour compatibilité
         items = await get_vinted_items()
     except Exception as e:
         print("❌ Erreur récupération Vinted :", e)
@@ -105,11 +104,12 @@ async def monitor_vinted():
             title=f"🔥 {item['title']}",
             color=0xff0000
         )
-        embed.add_field(name="💰 Prix", value=f"{item['price']} €", inline=True)
+        embed.add_field(name="💰 Prix", value=f"{item['price']}", inline=True)
         embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
         embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
-        embed.set_image(url=item["photo"]["url"])
+        if item["photo"]["url"]:
+            embed.set_image(url=item["photo"]["url"])
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
         view = VintedView(item["url"])
