@@ -3,14 +3,13 @@ from discord.ext import commands, tasks
 import json
 import asyncio
 import os
-from scraper import get_vinted_items  # 🔥 On importe le scraper
+from scraper import get_vinted_items  # Async scraper
 
 # ==============================
 # TOKEN (sécurisé Railway)
 # ==============================
 
 TOKEN = os.getenv("TOKEN")
-
 if not TOKEN:
     raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
 
@@ -60,9 +59,8 @@ class VintedView(discord.ui.View):
 # CATEGORY DETECTION
 # ==============================
 
-def detect_category(title):
+def detect_category(title: str):
     title = title.lower()
-
     if "t-shirt" in title:
         return "tshirt"
     elif "sweat" in title or "hoodie" in title:
@@ -75,7 +73,6 @@ def detect_category(title):
         return "chaussure"
     elif "tech" in title:
         return "niketech"
-
     return None
 
 # ==============================
@@ -85,9 +82,13 @@ def detect_category(title):
 @tasks.loop(seconds=30)
 async def monitor_vinted():
     global sent_items
-
     print("🔎 Recherche nouveaux items...")
-    items = get_vinted_items()
+
+    try:
+        items = await get_vinted_items()
+    except Exception as e:
+        print("❌ Erreur récupération Vinted :", e)
+        return
 
     if not items:
         print("❌ Aucun item récupéré.")
@@ -119,7 +120,6 @@ async def monitor_vinted():
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
         view = VintedView(item["url"])
-
         await channel.send(embed=embed, view=view)
 
         sent_items.append(item["id"])
