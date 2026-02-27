@@ -106,6 +106,8 @@ async def on_ready():
     monitor_vinted.start()
 
 
+print(f"TOKEN récupéré : {TOKEN}")
 bot.run(TOKEN)
+
 
 
