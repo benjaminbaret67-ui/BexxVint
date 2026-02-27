@@ -5,8 +5,12 @@ import json
 import asyncio
 import os
 
+# Récupère le token depuis la variable d'environnement Railway
 TOKEN = os.getenv("TOKEN")
+if not TOKEN:
+    raise ValueError("Le token Discord n'est pas défini !")
 
+# Mapping des catégories → channels
 CHANNELS = {
     "tshirt": 1476944679776944249,
     "sweat": 1476945026968981584,
@@ -18,31 +22,44 @@ CHANNELS = {
 
 intents = discord.Intents.default()
 intents.message_content = True
-
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# Charger les items déjà envoyés
 try:
     with open("data.json", "r") as f:
         sent_items = json.load(f)
-except:
+except FileNotFoundError:
     sent_items = []
 
+# Vue pour les boutons
 class VintedView(discord.ui.View):
     def __init__(self, item_url):
         super().__init__(timeout=None)
-
         self.add_item(discord.ui.Button(label="📄 Détails", url=item_url))
         self.add_item(discord.ui.Button(label="💳 Paiement", url=item_url))
         self.add_item(discord.ui.Button(label="💬 Contacter", url=item_url))
 
+# Fonction pour récupérer les items depuis Vinted
 def get_vinted_items():
     url = "https://www.vinted.fr/api/v2/catalog/items?search_text=nike&order=newest_first"
+    headers = {
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json"
+    }
 
-    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        r.raise_for_status()  # Vérifie le code HTTP
+        data = r.json()
+        return data.get("items", [])
+    except requests.RequestException as e:
+        print(f"Erreur HTTP : {e}")
+        return []
+    except json.JSONDecodeError:
+        print("Réponse non JSON :", r.text[:200])
+        return []
 
-    r = requests.get(url, headers=headers)
-    return r.json()["items"]
-
+# Détecter la catégorie d'un item
 def detect_category(title):
     title = title.lower()
     if "t-shirt" in title:
@@ -59,10 +76,15 @@ def detect_category(title):
         return "niketech"
     return None
 
+# Boucle principale
 @tasks.loop(seconds=30)
 async def monitor_vinted():
     global sent_items
     items = get_vinted_items()
+
+    if not items:
+        print("Aucun item récupéré cette boucle.")
+        return
 
     for item in items:
         if item["id"] in sent_items:
@@ -80,17 +102,14 @@ async def monitor_vinted():
             title=f"🔥 {item['title']}",
             color=0xff0000
         )
-
         embed.add_field(name="💰 Prix", value=f"{item['price']} €", inline=True)
         embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
         embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
-
         embed.set_image(url=item["photo"]["url"])
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
         view = VintedView(item["url"])
-
         await channel.send(embed=embed, view=view)
 
         sent_items.append(item["id"])
@@ -105,9 +124,4 @@ async def on_ready():
     print(f"Connecté en tant que {bot.user}")
     monitor_vinted.start()
 
-
-print(f"TOKEN récupéré : {TOKEN}")
 bot.run(TOKEN)
-
-
-
