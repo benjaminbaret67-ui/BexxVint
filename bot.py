@@ -1,16 +1,23 @@
 import discord
 from discord.ext import commands, tasks
-import requests
 import json
 import asyncio
 import os
+from scraper import get_vinted_items  # 🔥 On importe le scraper
 
-# Récupère le token depuis la variable d'environnement Railway
+# ==============================
+# TOKEN (sécurisé Railway)
+# ==============================
+
 TOKEN = os.getenv("TOKEN")
-if not TOKEN:
-    raise ValueError("Le token Discord n'est pas défini !")
 
-# Mapping des catégories → channels
+if not TOKEN:
+    raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
+
+# ==============================
+# CHANNELS
+# ==============================
+
 CHANNELS = {
     "tshirt": 1476944679776944249,
     "sweat": 1476945026968981584,
@@ -20,18 +27,28 @@ CHANNELS = {
     "niketech": 1476945463306489868
 }
 
+# ==============================
+# BOT CONFIG
+# ==============================
+
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# Charger les items déjà envoyés
+# ==============================
+# LOAD SENT ITEMS
+# ==============================
+
 try:
     with open("data.json", "r") as f:
         sent_items = json.load(f)
-except FileNotFoundError:
+except:
     sent_items = []
 
-# Vue pour les boutons
+# ==============================
+# DISCORD VIEW
+# ==============================
+
 class VintedView(discord.ui.View):
     def __init__(self, item_url):
         super().__init__(timeout=None)
@@ -39,29 +56,13 @@ class VintedView(discord.ui.View):
         self.add_item(discord.ui.Button(label="💳 Paiement", url=item_url))
         self.add_item(discord.ui.Button(label="💬 Contacter", url=item_url))
 
-# Fonction pour récupérer les items depuis Vinted
-def get_vinted_items():
-    url = "https://www.vinted.fr/api/v2/catalog/items?search_text=nike&order=newest_first"
+# ==============================
+# CATEGORY DETECTION
+# ==============================
 
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json"
-    }
-
-    r = requests.get(url, headers=headers)
-
-    print("Status code:", r.status_code)
-    print("Response preview:", r.text[:300])
-
-    try:
-        return r.json().get("items", [])
-    except Exception as e:
-        print("Erreur JSON:", e)
-        return []
-
-# Détecter la catégorie d'un item
 def detect_category(title):
     title = title.lower()
+
     if "t-shirt" in title:
         return "tshirt"
     elif "sweat" in title or "hoodie" in title:
@@ -74,16 +75,22 @@ def detect_category(title):
         return "chaussure"
     elif "tech" in title:
         return "niketech"
+
     return None
 
-# Boucle principale
+# ==============================
+# MAIN LOOP
+# ==============================
+
 @tasks.loop(seconds=30)
 async def monitor_vinted():
     global sent_items
+
+    print("🔎 Recherche nouveaux items...")
     items = get_vinted_items()
 
     if not items:
-        print("Aucun item récupéré cette boucle.")
+        print("❌ Aucun item récupéré.")
         return
 
     for item in items:
@@ -102,14 +109,17 @@ async def monitor_vinted():
             title=f"🔥 {item['title']}",
             color=0xff0000
         )
+
         embed.add_field(name="💰 Prix", value=f"{item['price']} €", inline=True)
         embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
         embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
+
         embed.set_image(url=item["photo"]["url"])
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
         view = VintedView(item["url"])
+
         await channel.send(embed=embed, view=view)
 
         sent_items.append(item["id"])
@@ -119,10 +129,17 @@ async def monitor_vinted():
 
         await asyncio.sleep(2)
 
+# ==============================
+# READY EVENT
+# ==============================
+
 @bot.event
 async def on_ready():
-    print(f"Connecté en tant que {bot.user}")
+    print(f"✅ Connecté en tant que {bot.user}")
     monitor_vinted.start()
 
-bot.run(TOKEN)
+# ==============================
+# START BOT
+# ==============================
 
+bot.run(TOKEN)
