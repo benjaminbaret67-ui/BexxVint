@@ -24,22 +24,37 @@ async def get_vinted_items():
                 link = card["href"]
                 if link.startswith("/"):
                     link = "https://www.vinted.fr" + link
-                # Tout est dans l'attribut title
+
+                # L'attribut title contient toutes les infos
+                # Exemple : "Chaussures homme, état: Neuf sans étiquette, taille: 43, 6,00 €, 7,00 € Protection acheteurs incluse"
                 info = card.get("title", "")
-                # Exemple de parsing simple
-                # "Chaussures homme, état: Neuf sans étiquette, taille: 43, 6,00 €, 7,00 € Protection acheteurs incluse"
+
+                # Titre
                 title = info.split(", état:")[0].strip()
-                price = info.split(",")[-2].strip() if "," in info else "N/A"
+
+                # Taille (si "taille:" présent)
+                size_title = "N/A"
+                if "taille:" in info:
+                    try:
+                        size_title = info.split("taille:")[1].split(",")[0].strip()
+                    except:
+                        size_title = "N/A"
+
+                # Prix (on prend le dernier montant avant "€ Protection")
+                price = "N/A"
+                parts = [p for p in info.split(",") if "€" in p]
+                if parts:
+                    price = parts[-1].split("€")[0].strip()
 
                 items_list.append({
                     "id": link.split("/")[-1],
                     "title": title,
                     "price": price,
                     "url": link,
-                    "photo": {"url": ""},  # On peut ajouter l'image si besoin
-                    "user": {"login": "N/A"},
-                    "created_at": "N/A",
-                    "size_title": "N/A"
+                    "photo": {"url": ""},  # Pour l'instant vide, on peut extraire l'image si nécessaire
+                    "user": {"login": "N/A"},  # Impossible à obtenir sans JS
+                    "created_at": "N/A",       # Impossible à obtenir sans JS
+                    "size_title": size_title
                 })
             except Exception:
                 continue
