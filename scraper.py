@@ -1,28 +1,19 @@
-from playwright.sync_api import sync_playwright
-import json
-import re
+from playwright.async_api import async_playwright
 
-def get_vinted_items():
-    items = []
+async def get_vinted_items():
+    url = "https://www.vinted.fr/catalog?search_text=nike&order=newest_first"
 
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
 
-        page.goto("https://www.vinted.fr/catalog?search_text=nike")
-        page.wait_for_timeout(5000)
+        await page.goto(url, timeout=60000)
+        await page.wait_for_timeout(5000)
 
-        content = page.content()
+        content = await page.content()
 
-        match = re.search(r'window.__INITIAL_STATE__ = ({.*});', content)
+        await browser.close()
 
-        if match:
-            data = json.loads(match.group(1))
-            try:
-                items = data["catalog"]["items"]
-            except:
-                items = []
-
-        browser.close()
-
-    return items
+    # Ici tu devras parser le HTML
+    # Pour l’instant on retourne vide pour test
+    return []
