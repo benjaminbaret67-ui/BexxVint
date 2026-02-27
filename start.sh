@@ -1,3 +1,11 @@
 #!/bin/bash
-python -m playwright install chromium && pip install -r requirements.txt
+# ==============================
+# Script de démarrage pour Railway
+# Installe Playwright et ses navigateurs
+# ==============================
+
+# Installer Playwright Chromium (obligatoire)
+python -m playwright install chromium
+
+# Lancer le bot
 python bot.py
