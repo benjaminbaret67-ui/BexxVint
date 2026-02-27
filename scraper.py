@@ -2,6 +2,7 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+import asyncio
 
 async def get_vinted_items():
     url = "https://www.vinted.fr/catalog?search_text=nike&order=newest_first"
@@ -9,8 +10,9 @@ async def get_vinted_items():
 
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                          "(KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                          "AppleWebKit/537.36 (KHTML, like Gecko) "
+                          "Chrome/116.0.0.0 Safari/537.36"
         }
 
         response = requests.get(url, headers=headers, timeout=15)
