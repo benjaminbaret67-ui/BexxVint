@@ -5,7 +5,7 @@ import json
 import asyncio
 import os
 
-TOKEN = os.getenv("MTQ3Njg5MjgyNDc0NTE1MjU0Mg.Grq1-I.KD1IjT1QqenHE7dMwXG70jlKpvOrbtb0ITFCBM")
+TOKEN = os.getenv("MTQ3Njg5MjgyNDc0NTE1MjU0Mg.GUwHGa.S0zlP-rF3Icx7J3qbPLUZ--bKk3j5bEMIFF0x4")
 
 CHANNELS = {
     "tshirt": 1476944679776944249,
@@ -104,5 +104,6 @@ async def monitor_vinted():
 async def on_ready():
     print(f"Connecté en tant que {bot.user}")
     monitor_vinted.start()
+
 
 bot.run(TOKEN)
