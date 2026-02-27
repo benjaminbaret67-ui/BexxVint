@@ -42,21 +42,21 @@ class VintedView(discord.ui.View):
 # Fonction pour récupérer les items depuis Vinted
 def get_vinted_items():
     url = "https://www.vinted.fr/api/v2/catalog/items?search_text=nike&order=newest_first"
+
     headers = {
         "User-Agent": "Mozilla/5.0",
         "Accept": "application/json"
     }
 
+    r = requests.get(url, headers=headers)
+
+    print("Status code:", r.status_code)
+    print("Response preview:", r.text[:300])
+
     try:
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()  # Vérifie le code HTTP
-        data = r.json()
-        return data.get("items", [])
-    except requests.RequestException as e:
-        print(f"Erreur HTTP : {e}")
-        return []
-    except json.JSONDecodeError:
-        print("Réponse non JSON :", r.text[:200])
+        return r.json().get("items", [])
+    except Exception as e:
+        print("Erreur JSON:", e)
         return []
 
 # Détecter la catégorie d'un item
@@ -125,3 +125,4 @@ async def on_ready():
     monitor_vinted.start()
 
 bot.run(TOKEN)
+
