@@ -5,17 +5,9 @@ import asyncio
 import os
 from scraper import get_vinted_items  # Async scraper
 
-# ==============================
-# TOKEN (sécurisé Railway)
-# ==============================
-
 TOKEN = os.getenv("TOKEN")
 if not TOKEN:
     raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
-
-# ==============================
-# CHANNELS
-# ==============================
 
 CHANNELS = {
     "tshirt": 1476944679776944249,
@@ -26,17 +18,9 @@ CHANNELS = {
     "niketech": 1476945463306489868
 }
 
-# ==============================
-# BOT CONFIG
-# ==============================
-
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
-
-# ==============================
-# LOAD SENT ITEMS
-# ==============================
 
 try:
     with open("data.json", "r") as f:
@@ -44,20 +28,12 @@ try:
 except:
     sent_items = []
 
-# ==============================
-# DISCORD VIEW
-# ==============================
-
 class VintedView(discord.ui.View):
     def __init__(self, item_url):
         super().__init__(timeout=None)
         self.add_item(discord.ui.Button(label="📄 Détails", url=item_url))
         self.add_item(discord.ui.Button(label="💳 Paiement", url=item_url))
         self.add_item(discord.ui.Button(label="💬 Contacter", url=item_url))
-
-# ==============================
-# CATEGORY DETECTION
-# ==============================
 
 def detect_category(title: str):
     title = title.lower()
@@ -74,10 +50,6 @@ def detect_category(title: str):
     elif "tech" in title:
         return "niketech"
     return None
-
-# ==============================
-# MAIN LOOP
-# ==============================
 
 @tasks.loop(seconds=30)
 async def monitor_vinted():
@@ -110,12 +82,10 @@ async def monitor_vinted():
             title=f"🔥 {item['title']}",
             color=0xff0000
         )
-
         embed.add_field(name="💰 Prix", value=f"{item['price']} €", inline=True)
         embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
         embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
-
         embed.set_image(url=item["photo"]["url"])
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
@@ -123,23 +93,14 @@ async def monitor_vinted():
         await channel.send(embed=embed, view=view)
 
         sent_items.append(item["id"])
-
         with open("data.json", "w") as f:
             json.dump(sent_items, f)
 
         await asyncio.sleep(2)
 
-# ==============================
-# READY EVENT
-# ==============================
-
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user}")
     monitor_vinted.start()
-
-# ==============================
-# START BOT
-# ==============================
 
 bot.run(TOKEN)
