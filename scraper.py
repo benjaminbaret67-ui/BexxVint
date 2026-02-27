@@ -1,6 +1,6 @@
 # scraper.py
-import requests
-from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
+import asyncio
 import json
 
 async def get_vinted_items():
@@ -14,7 +14,6 @@ async def get_vinted_items():
             await page.goto(url, timeout=60000)
             await page.wait_for_selector("div.feed-grid__item")  # cartes des items
 
-            # récupérer toutes les cartes
             items = await page.query_selector_all("div.feed-grid__item")
             for it in items:
                 title = await it.query_selector_eval("h3", "el => el.innerText")
