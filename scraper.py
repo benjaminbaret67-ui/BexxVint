@@ -30,8 +30,7 @@ async def get_vinted_items():
         print("❌ Bright Data Error:", e)
         return []
 
-    data = response.json()
-    html = data.get("body", "")
+    html = response.text
 
     if not html:
         print("❌ HTML vide")
