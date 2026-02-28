@@ -1,4 +1,6 @@
 # scraper.py
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import os
 import requests
 from bs4 import BeautifulSoup
