@@ -14,7 +14,7 @@ if not TOKEN:
     raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
 
 # ==============================
-# CHANNELS
+# CHANNELS (mets ici les bons IDs)
 # ==============================
 CHANNELS = {
     "tshirt": 1476944679776944249,
@@ -79,7 +79,7 @@ async def monitor_vinted():
     print("🔎 Recherche nouveaux items...")
 
     try:
-        items = get_vinted_items()  # plus besoin d'await
+        items = get_vinted_items()  # scraping direct
     except Exception as e:
         print("❌ Erreur récupération Vinted :", e)
         return
@@ -96,9 +96,12 @@ async def monitor_vinted():
         if not category:
             continue
 
-        channel = bot.get_channel(CHANNELS[category])
+        channel = bot.get_channel(CHANNELS.get(category))
         if not channel:
+            print(f"❌ Channel introuvable pour la catégorie {category} (ID: {CHANNELS.get(category)})")
             continue
+        else:
+            print(f"✅ Envoi dans le salon {channel.name} ({category})")
 
         # ==============================
         # EMBED DISCORD
@@ -112,11 +115,11 @@ async def monitor_vinted():
         if item["photo"]["url"]:
             embed.set_image(url=item["photo"]["url"])
 
-        embed.add_field(name="💰 Prix", value=item["price"], inline=True)
-        embed.add_field(name="📏 Taille", value=item["size_title"], inline=True)
-        embed.add_field(name="⚡ État", value=item["etat"], inline=True)
-        embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
-        embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
+        embed.add_field(name="💰 Prix", value=item.get("price", "N/A"), inline=True)
+        embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
+        embed.add_field(name="⚡ État", value=item.get("etat", "N/A"), inline=True)
+        embed.add_field(name="👤 Vendeur", value=item.get("user", {}).get("login", "N/A"), inline=True)
+        embed.add_field(name="📅 Ajouté", value=item.get("created_at", "N/A"), inline=False)
 
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
@@ -135,10 +138,17 @@ async def monitor_vinted():
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user}")
+
+    # Test d'envoi dans le channel "tshirt" au démarrage
+    test_channel = bot.get_channel(CHANNELS.get("tshirt"))
+    if test_channel:
+        await test_channel.send("Bot démarré ✅")
+    else:
+        print(f"❌ Impossible de trouver le channel test 'tshirt'")
+
     monitor_vinted.start()
 
 # ==============================
 # START BOT
 # ==============================
 bot.run(TOKEN)
-
