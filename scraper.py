@@ -1,39 +1,26 @@
 # scraper.py
 import os
 import requests
-import json
 from bs4 import BeautifulSoup
 
-# ==============================
-# VARIABLES D'ENVIRONNEMENT
-# ==============================
 BRIGHT_API_KEY = os.environ["BRIGHT_API_KEY"]
 BRIGHT_ZONE = os.environ["BRIGHT_ZONE"]
 TARGET_URL = os.environ["TARGET_URL"]
 
-# ==============================
-# FONCTION PRINCIPALE
-# ==============================
 def get_vinted_items():
     url = "https://api.brightdata.com/request"
 
     headers = {
         "Authorization": f"Bearer {BRIGHT_API_KEY}",
         "Content-Type": "application/json",
+        # x-unblock-expect doit être ici directement
+        "x-unblock-expect": '{"element": ".feed-grid__item"}'
     }
-
-    # On demande à Unlocker de faire le rendu JS et d'attendre que les items soient présents
-    unblock_expect = {"element": ".feed-grid__item"}
 
     payload = {
         "zone": BRIGHT_ZONE,
         "url": TARGET_URL,
-        "format": "raw",
-        "extra": {
-            "headers": {
-                "x-unblock-expect": json.dumps(unblock_expect)
-            }
-        }
+        "format": "raw"
     }
 
     try:
@@ -50,9 +37,7 @@ def get_vinted_items():
         print("❌ __NEXT_DATA__ ou body vide")
         return []
 
-    # ==============================
-    # PARSING DES ITEMS
-    # ==============================
+    # Parsing HTML
     soup = BeautifulSoup(html, "html.parser")
     cards = soup.select("a.new-item-box__overlay--clickable")
     items_list = []
@@ -67,10 +52,7 @@ def get_vinted_items():
             if not info:
                 continue
 
-            # Titre
             title = info.split(", état:")[0].strip()
-
-            # Taille
             size_title = "N/A"
             if "taille:" in info:
                 try:
@@ -78,17 +60,14 @@ def get_vinted_items():
                 except:
                     pass
 
-            # Prix
             price = "N/A"
             parts = [p for p in info.split(",") if "€" in p]
             if parts:
                 price = parts[-1].strip()
 
-            # Image
             img_tag = card.find("img")
             img_url = img_tag.get("src", "") if img_tag else ""
 
-            # ID
             item_id = link.split("/items/")[-1].split("-")[0]
 
             items_list.append({
@@ -107,10 +86,3 @@ def get_vinted_items():
 
     print(f"✅ Items trouvés: {len(items_list)}")
     return items_list
-
-# ==============================
-# TEST LOCAL
-# ==============================
-if __name__ == "__main__":
-    items = get_vinted_items()
-    print(items[:5])  # affiche les 5 premiers pour vérifier
