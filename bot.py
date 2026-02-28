@@ -112,7 +112,7 @@ async def monitor_vinted():
         if item["photo"]["url"]:
             embed.set_image(url=item["photo"]["url"])
 
-        embed.add_field(name="💰 Prix", value=f"{item['price']} €", inline=True)
+        embed.add_field(name="💰 Prix", value=f"{item['price']} ", inline=True)
         embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
         embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
@@ -140,3 +140,4 @@ async def on_ready():
 # START BOT
 # ==============================
 bot.run(TOKEN)
+
