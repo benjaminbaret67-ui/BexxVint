@@ -1,15 +1,15 @@
 # bot.py
 import discord
 from discord.ext import commands, tasks
+import json
 import asyncio
 import os
-import json
-from scraper import get_vinted_items
+from scraper import get_vinted_items_async  # async
 
 # ==============================
-# TOKEN DISCORD
+# TOKEN
 # ==============================
-TOKEN = os.environ.get("TOKEN")
+TOKEN = os.environ.get("TOKEN")  # Discord Bot Token
 if not TOKEN:
     raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
 
@@ -17,12 +17,12 @@ if not TOKEN:
 # CHANNELS
 # ==============================
 CHANNELS = {
-    "tshirt": 1476944679776944249,
-    "sweat": 1476945026968981584,
-    "doudoune": 1476945120669466664,
-    "pantalon": 1476945217058766912,
-    "chaussure": 1476945337829818421,
-    "niketech": 1476945463306489868
+    "tshirt": 123456789012345678,
+    "sweat": 123456789012345679,
+    "doudoune": 123456789012345680,
+    "pantalon": 123456789012345681,
+    "chaussure": 123456789012345682,
+    "niketech": 123456789012345683
 }
 
 # ==============================
@@ -79,7 +79,7 @@ async def monitor_vinted():
     print("🔎 Recherche nouveaux items...")
 
     try:
-        items = get_vinted_items()  # plus besoin d'await
+        items = await get_vinted_items_async()
     except Exception as e:
         print("❌ Erreur récupération Vinted :", e)
         return
@@ -100,25 +100,20 @@ async def monitor_vinted():
         if not channel:
             continue
 
-        # ==============================
-        # EMBED DISCORD
-        # ==============================
         embed = discord.Embed(
             title=f"🔥 {item['title']}",
             url=item["url"],
             color=0xff0000
         )
 
+        embed.add_field(name="💰 Prix", value=item["price"], inline=True)
+        embed.add_field(name="⚡ État", value=item.get("etat", "N/A"), inline=True)
+        embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
+        embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
+        embed.add_field(name="📅 Ajouté", value=item.get("created_at", "N/A"), inline=False)
+
         if item["photo"]["url"]:
             embed.set_image(url=item["photo"]["url"])
-
-        embed.add_field(name="💰 Prix", value=item["price"], inline=True)
-        embed.add_field(name="📏 Taille", value=item["size_title"], inline=True)
-        embed.add_field(name="⚡ État", value=item["etat"], inline=True)
-        embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
-        embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
-
-        embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
         view = VintedView(item["url"])
         await channel.send(embed=embed, view=view)
@@ -141,4 +136,3 @@ async def on_ready():
 # START BOT
 # ==============================
 bot.run(TOKEN)
-
