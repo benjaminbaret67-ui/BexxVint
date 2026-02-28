@@ -1,72 +1,57 @@
-# scraper.py
 import os
 import requests
-import json
 from bs4 import BeautifulSoup
+import json
 
-BRIGHT_API_KEY = os.getenv("BRIGHT_API_KEY")
-BRIGHT_ZONE = os.getenv("BRIGHT_ZONE")
-TARGET_URL = os.getenv("TARGET_URL")
+API_TOKEN = os.environ["BRIGHTDATA_API_KEY"]
+UNLOCKER_PROXY_NAME = os.environ["BRIGHTDATA_UNLOCKER_NAME"]
+TARGET_URL = "https://www.vinted.fr/catalog?search_text=nike"
 
-async def get_vinted_items():
-    try:
-        response = requests.post(
-            "https://api.brightdata.com/request",
-            headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {BRIGHT_API_KEY}"
-            },
-            json={
-                "zone": BRIGHT_ZONE,
-                "url": TARGET_URL,
-                "format": "raw"
-            },
-            timeout=40
-        )
+def get_vinted_items():
+    url = "https://api.brightdata.com/request"
+    headers = {
+        "Authorization": f"Bearer {API_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "zone": UNLOCKER_PROXY_NAME,
+        "url": TARGET_URL,
+        "format": "raw",
+        "extra": {
+            "headers": {
+                "x-unblock-expect": json.dumps({"element": ".feed-grid__item"})
+            }
+        }
+    }
 
-        print("STATUS CODE:", response.status_code)
+    resp = requests.post(url, headers=headers, json=payload, timeout=60)
+    resp.raise_for_status()
+    html = resp.json().get("body", "")
 
-        if response.status_code != 200:
-            print("❌ BrightData error:", response.text)
-            return []
+    soup = BeautifulSoup(html, "html.parser")
+    cards = soup.select("a.new-item-box__overlay--clickable")
+    items_list = []
 
-        html = response.text
-        soup = BeautifulSoup(html, "html.parser")
+    for card in cards:
+        link = card.get("href")
+        if link.startswith("/"):
+            link = "https://www.vinted.fr" + link
+        title = card.get("title", "N/A")
+        img_tag = card.find("img")
+        img_url = img_tag.get("src") if img_tag else ""
+        price = "N/A"
+        if "€" in title:
+            price = title.split("€")[0].split(",")[-1].strip() + "€"
 
-        script_tag = soup.find("script", id="__NEXT_DATA__")
-        if not script_tag:
-            print("❌ __NEXT_DATA__ non trouvé")
-            return []
+        items_list.append({
+            "id": link.split("/items/")[-1].split("-")[0],
+            "title": title,
+            "price": price,
+            "url": link,
+            "photo": {"url": img_url},
+            "size_title": "N/A",
+            "user": {"login": "N/A"},
+            "created_at": "N/A"
+        })
 
-        data = json.loads(script_tag.string)
-
-        items = (
-            data
-            .get("props", {})
-            .get("pageProps", {})
-            .get("catalogItems", {})
-            .get("items", [])
-        )
-
-        items_list = []
-
-        for item in items:
-            item_id = str(item["id"])
-
-            items_list.append({
-                "id": item_id,
-                "title": item.get("title", "N/A"),
-                "price": f'{item.get("price", "N/A")}€',
-                "url": f"https://www.vinted.fr/items/{item_id}",
-                "photo": {"url": item.get("photo", {}).get("url", "")},
-                "user": {"login": item.get("user", {}).get("login", "N/A")},
-                "created_at": item.get("createdAt", "N/A"),
-                "size_title": item.get("size_title", "N/A")
-            })
-
-        print("✅ Items trouvés:", len(items_list))
-        return items_list
-
-    except Exception as e:
-        print("❌ Erreur scraper:", e)
-        return []
+    return items_list
