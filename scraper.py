@@ -3,7 +3,7 @@ import asyncio
 
 async def get_vinted_items():
     url = "https://www.vinted.fr/api/v2/catalog/items"
-    
+
     params = {
         "search_text": "nike",
         "order": "newest_first",
@@ -11,11 +11,9 @@ async def get_vinted_items():
     }
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-        "Accept": "application/json, text/plain, */*",
-        "X-Requested-With": "XMLHttpRequest",
-        "Referer": "https://www.vinted.fr/",
-        "Origin": "https://www.vinted.fr"
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json",
+        "Referer": "https://www.vinted.fr/catalog?search_text=nike"
     }
 
     items_list = []
@@ -23,15 +21,20 @@ async def get_vinted_items():
     try:
         response = requests.get(url, headers=headers, params=params, timeout=15)
 
-        # 🔎 Debug si Vinted bloque
-        if "application/json" not in response.headers.get("Content-Type", ""):
-            print("⚠️ Vinted bloque la requête (pas du JSON)")
-            print(response.text[:300])
+        print("STATUS CODE:", response.status_code)
+
+        if response.status_code != 200:
+            print("❌ Mauvais status code")
             return []
 
         data = response.json()
 
-        for item in data.get("items", []):
+        if "items" not in data:
+            print("❌ Pas de clé 'items' dans la réponse")
+            print(data)
+            return []
+
+        for item in data["items"]:
             items_list.append({
                 "id": str(item.get("id")),
                 "title": item.get("title", "N/A"),
