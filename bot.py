@@ -3,19 +3,10 @@ import discord
 from discord.ext import commands, tasks
 import json
 import asyncio
-import os
-from scraper import get_vinted_items_async  # async
+from scraper import get_vinted_items
 
-# ==============================
-# TOKEN
-# ==============================
-TOKEN = os.environ.get("TOKEN")  # Discord Bot Token
-if not TOKEN:
-    raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
+TOKEN = "TON_TOKEN_ICI"
 
-# ==============================
-# CHANNELS
-# ==============================
 CHANNELS = {
     "tshirt": 1476944679776944249,
     "sweat": 1476945026968981584,
@@ -25,25 +16,16 @@ CHANNELS = {
     "niketech": 1476945463306489868
 }
 
-# ==============================
-# BOT CONFIG
-# ==============================
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ==============================
-# LOAD SENT ITEMS
-# ==============================
 try:
     with open("data.json", "r") as f:
         sent_items = json.load(f)
 except:
     sent_items = []
 
-# ==============================
-# DISCORD VIEW (BOUTONS)
-# ==============================
 class VintedView(discord.ui.View):
     def __init__(self, item_url):
         super().__init__(timeout=None)
@@ -51,9 +33,6 @@ class VintedView(discord.ui.View):
         self.add_item(discord.ui.Button(label="💳 Paiement", url=item_url))
         self.add_item(discord.ui.Button(label="💬 Contacter", url=item_url))
 
-# ==============================
-# CATEGORY DETECTION
-# ==============================
 def detect_category(title: str):
     title = title.lower()
     if "t-shirt" in title:
@@ -70,20 +49,12 @@ def detect_category(title: str):
         return "niketech"
     return None
 
-# ==============================
-# MAIN LOOP
-# ==============================
 @tasks.loop(seconds=30)
 async def monitor_vinted():
     global sent_items
     print("🔎 Recherche nouveaux items...")
 
-    try:
-        items = await get_vinted_items_async()
-    except Exception as e:
-        print("❌ Erreur récupération Vinted :", e)
-        return
-
+    items = get_vinted_items()
     if not items:
         print("❌ Aucun item récupéré.")
         return
@@ -124,16 +95,9 @@ async def monitor_vinted():
 
         await asyncio.sleep(1)
 
-# ==============================
-# READY EVENT
-# ==============================
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user}")
     monitor_vinted.start()
 
-# ==============================
-# START BOT
-# ==============================
 bot.run(TOKEN)
-
