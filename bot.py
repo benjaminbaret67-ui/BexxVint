@@ -1,12 +1,21 @@
 # bot.py
 import discord
 from discord.ext import commands, tasks
-import json
 import asyncio
+import os
+import json
 from scraper import get_vinted_items
 
-TOKEN = "TON_TOKEN_ICI"
+# ==============================
+# TOKEN DISCORD
+# ==============================
+TOKEN = os.environ.get("TOKEN")
+if not TOKEN:
+    raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
 
+# ==============================
+# CHANNELS
+# ==============================
 CHANNELS = {
     "tshirt": 1476944679776944249,
     "sweat": 1476945026968981584,
@@ -16,16 +25,25 @@ CHANNELS = {
     "niketech": 1476945463306489868
 }
 
+# ==============================
+# BOT CONFIG
+# ==============================
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ==============================
+# LOAD SENT ITEMS
+# ==============================
 try:
     with open("data.json", "r") as f:
         sent_items = json.load(f)
 except:
     sent_items = []
 
+# ==============================
+# DISCORD VIEW (BOUTONS)
+# ==============================
 class VintedView(discord.ui.View):
     def __init__(self, item_url):
         super().__init__(timeout=None)
@@ -33,6 +51,9 @@ class VintedView(discord.ui.View):
         self.add_item(discord.ui.Button(label="💳 Paiement", url=item_url))
         self.add_item(discord.ui.Button(label="💬 Contacter", url=item_url))
 
+# ==============================
+# CATEGORY DETECTION
+# ==============================
 def detect_category(title: str):
     title = title.lower()
     if "t-shirt" in title:
@@ -49,12 +70,20 @@ def detect_category(title: str):
         return "niketech"
     return None
 
+# ==============================
+# MAIN LOOP
+# ==============================
 @tasks.loop(seconds=30)
 async def monitor_vinted():
     global sent_items
     print("🔎 Recherche nouveaux items...")
 
-    items = get_vinted_items()
+    try:
+        items = await get_vinted_items()
+    except Exception as e:
+        print("❌ Erreur récupération Vinted :", e)
+        return
+
     if not items:
         print("❌ Aucun item récupéré.")
         return
@@ -71,20 +100,25 @@ async def monitor_vinted():
         if not channel:
             continue
 
+        # ==============================
+        # EMBED DISCORD
+        # ==============================
         embed = discord.Embed(
             title=f"🔥 {item['title']}",
             url=item["url"],
             color=0xff0000
         )
 
-        embed.add_field(name="💰 Prix", value=item["price"], inline=True)
-        embed.add_field(name="⚡ État", value=item.get("etat", "N/A"), inline=True)
-        embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
-        embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
-        embed.add_field(name="📅 Ajouté", value=item.get("created_at", "N/A"), inline=False)
-
         if item["photo"]["url"]:
             embed.set_image(url=item["photo"]["url"])
+
+        embed.add_field(name="💰 Prix", value=item["price"], inline=True)
+        embed.add_field(name="📏 Taille", value=item["size_title"], inline=True)
+        embed.add_field(name="⚡ État", value=item["etat"], inline=True)
+        embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
+        embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
+
+        embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
         view = VintedView(item["url"])
         await channel.send(embed=embed, view=view)
@@ -95,9 +129,15 @@ async def monitor_vinted():
 
         await asyncio.sleep(1)
 
+# ==============================
+# READY EVENT
+# ==============================
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user}")
     monitor_vinted.start()
 
+# ==============================
+# START BOT
+# ==============================
 bot.run(TOKEN)
