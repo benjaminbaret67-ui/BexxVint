@@ -5,7 +5,7 @@ import json
 
 API_TOKEN = os.environ["BRIGHT_API_KEY"]
 UNLOCKER_PROXY_NAME = os.environ["BRIGHT_ZONE"]
-TARGET_URL = "https://www.vinted.fr/catalog?search_text=nike"
+TARGET_URL = os.environ["TARGET_URL"]
 
 def get_vinted_items():
     url = "https://api.brightdata.com/request"
