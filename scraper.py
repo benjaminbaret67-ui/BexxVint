@@ -7,25 +7,23 @@ from bs4 import BeautifulSoup
 # ==============================
 # VARIABLES D'ENVIRONNEMENT
 # ==============================
-BRIGHT_API_KEY = os.environ.get("BRIGHT_API_KEY")
-BRIGHT_ZONE = os.environ.get("BRIGHT_ZONE")  # ex: vinted_unlocker_premium
-TARGET_URL = os.environ.get("TARGET_URL", "https://www.vinted.fr/catalog?search_text=nike&order=newest_first")
-
-if not BRIGHT_API_KEY or not BRIGHT_ZONE:
-    raise ValueError("BRIGHT_API_KEY ou BRIGHT_ZONE non défini !")
+BRIGHT_API_KEY = os.environ["BRIGHT_API_KEY"]
+BRIGHT_ZONE = os.environ["BRIGHT_ZONE"]
+TARGET_URL = os.environ["TARGET_URL"]
 
 # ==============================
 # FONCTION PRINCIPALE
 # ==============================
-def get_vinted_html():
-    """Récupère le HTML du catalogue Vinted via Bright Data Unlocker API"""
+def get_vinted_items():
     url = "https://api.brightdata.com/request"
+
     headers = {
         "Authorization": f"Bearer {BRIGHT_API_KEY}",
         "Content-Type": "application/json",
     }
 
-    unblock_expect = {"element": ".feed-grid__item"}  # attend que la grille d'items soit rendue JS
+    # On demande à Unlocker de faire le rendu JS et d'attendre que les items soient présents
+    unblock_expect = {"element": ".feed-grid__item"}
 
     payload = {
         "zone": BRIGHT_ZONE,
@@ -39,91 +37,80 @@ def get_vinted_html():
     }
 
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=60)
-        resp.raise_for_status()
-        data = resp.json()
-        html = data.get("body", "")
-        return html
-    except Exception as e:
-        print("❌ Erreur récupération Vinted :", e)
-        return ""
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        response.raise_for_status()
+    except requests.HTTPError as e:
+        print("❌ Erreur Bright Data :", e.response.status_code)
+        print("BODY:", e.response.text[:500])
+        return []
 
-# ==============================
-# PARSING DES ITEMS
-# ==============================
-def parse_vinted_items(html):
-    """Parse le HTML et retourne une liste d'items prêts pour Discord"""
-    items_list = []
+    data = response.json()
+    html = data.get("body", "")
+    if not html:
+        print("❌ __NEXT_DATA__ ou body vide")
+        return []
+
+    # ==============================
+    # PARSING DES ITEMS
+    # ==============================
     soup = BeautifulSoup(html, "html.parser")
     cards = soup.select("a.new-item-box__overlay--clickable")
+    items_list = []
 
     for card in cards:
         try:
             link = card.get("href")
-            if not link:
-                continue
-            if link.startswith("/"):
+            if link and link.startswith("/"):
                 link = "https://www.vinted.fr" + link
 
-            title_full = card.get("title", "")
-            if not title_full:
+            info = card.get("title", "")
+            if not info:
                 continue
 
-            # ===== Titre =====
-            title = title_full.split(", état:")[0].strip()
+            # Titre
+            title = info.split(", état:")[0].strip()
 
-            # ===== État =====
-            etat = "N/A"
-            if "état:" in title_full:
+            # Taille
+            size_title = "N/A"
+            if "taille:" in info:
                 try:
-                    etat = title_full.split("état:")[1].split(",")[0].strip()
+                    size_title = info.split("taille:")[1].split(",")[0].strip()
                 except:
                     pass
 
-            # ===== Taille =====
-            taille = "N/A"
-            if "taille:" in title_full:
-                try:
-                    taille = title_full.split("taille:")[1].split(",")[0].strip()
-                except:
-                    pass
-
-            # ===== Prix =====
-            prix = "N/A"
-            parts = [p for p in title_full.split(",") if "€" in p]
+            # Prix
+            price = "N/A"
+            parts = [p for p in info.split(",") if "€" in p]
             if parts:
-                prix = parts[-1].strip()
+                price = parts[-1].strip()
 
-            # ===== Image =====
+            # Image
             img_tag = card.find("img")
-            img_url = img_tag.get("src") if img_tag and img_tag.get("src") else ""
+            img_url = img_tag.get("src", "") if img_tag else ""
 
-            # ===== Item ID =====
+            # ID
             item_id = link.split("/items/")[-1].split("-")[0]
 
             items_list.append({
                 "id": item_id,
                 "title": title,
-                "etat": etat,
-                "size_title": taille,
-                "price": prix,
+                "price": price,
                 "url": link,
                 "photo": {"url": img_url},
-                "user": {"login": "N/A"},  # pas dispo sans JS ou API interne
-                "created_at": "N/A"
+                "user": {"login": "N/A"},
+                "created_at": "N/A",
+                "size_title": size_title
             })
 
         except Exception:
             continue
 
-    print("✅ Items trouvés:", len(items_list))
+    print(f"✅ Items trouvés: {len(items_list)}")
     return items_list
 
 # ==============================
-# FONCTION ASYNC
+# TEST LOCAL
 # ==============================
-async def get_vinted_items():
-    html = get_vinted_html()
-    if not html:
-        return []
-    return parse_vinted_items(html)
+if __name__ == "__main__":
+    items = get_vinted_items()
+    print(items[:5])  # affiche les 5 premiers pour vérifier
