@@ -79,7 +79,7 @@ async def monitor_vinted():
     print("🔎 Recherche nouveaux items...")
 
     try:
-        items = await get_vinted_items()
+        items = get_vinted_items()  # plus besoin d'await
     except Exception as e:
         print("❌ Erreur récupération Vinted :", e)
         return
@@ -141,3 +141,4 @@ async def on_ready():
 # START BOT
 # ==============================
 bot.run(TOKEN)
+
