@@ -1,68 +1,55 @@
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-import os
 import requests
-from bs4 import BeautifulSoup
+import urllib3
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 async def get_vinted_items():
-    url = "https://www.vinted.fr/catalog?search_text=nike&order=newest_first"
+    url = "https://www.vinted.fr/api/v2/catalog/items"
 
-    proxy_user = os.getenv("BRIGHT_USER")
-    proxy_pass = os.getenv("BRIGHT_PASS")
-    proxy_host = os.getenv("BRIGHT_HOST")
-    proxy_port = os.getenv("BRIGHT_PORT")
-
-    proxy = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
-
-    proxies = {
-        "http": proxy,
-        "https": proxy
+    params = {
+        "search_text": "nike",
+        "order": "newest_first",
+        "per_page": 20
     }
 
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json"
     }
 
     try:
         response = requests.get(
-        url,
-        headers=headers,
-        timeout=15,
-        verify=False  # 👈 AJOUTE ÇA
+            url,
+            headers=headers,
+            params=params,
+            timeout=15,
+            verify=False
         )
 
         print("STATUS CODE:", response.status_code)
 
         if response.status_code != 200:
+            print("❌ Mauvais status code")
             return []
 
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        cards = soup.select("a.new-item-box__overlay--clickable")
+        data = response.json()
 
         items_list = []
 
-        for card in cards:
-            link = card["href"]
-            if link.startswith("/"):
-                link = "https://www.vinted.fr" + link
-
-            info = card.get("title", "")
-            title = info.split(", état:")[0].strip()
-
+        for item in data.get("items", []):
             items_list.append({
-                "id": link.split("/")[-1],
-                "title": title,
-                "price": "N/A",
-                "url": link,
-                "photo": {"url": ""},
-                "user": {"login": "N/A"},
-                "created_at": "N/A",
-                "size_title": "N/A"
+                "id": item["id"],
+                "title": item["title"],
+                "price": item["price"]["amount"] + " €",
+                "url": item["url"],
+                "photo": {"url": item["photo"]["url"] if item.get("photo") else ""},
+                "user": {"login": item["user"]["login"]},
+                "created_at": item["created_at_ts"],
+                "size_title": item.get("size_title", "N/A")
             })
 
         return items_list
 
     except Exception as e:
-        print("❌ Erreur scraper Vinted:", e)
+        print("❌ Erreur API Vinted:", e)
         return []
