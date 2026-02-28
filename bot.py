@@ -1,14 +1,15 @@
+# bot.py
 import discord
 from discord.ext import commands, tasks
-import json
 import asyncio
 import os
-from scraper import get_vinted_items  # API Vinted
+import json
+from scraper import get_vinted_items
 
 # ==============================
-# TOKEN
+# TOKEN DISCORD
 # ==============================
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.environ.get("TOKEN")
 if not TOKEN:
     raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
 
@@ -108,13 +109,13 @@ async def monitor_vinted():
             color=0xff0000
         )
 
-        # PHOTO EN PRIORITÉ
         if item["photo"]["url"]:
             embed.set_image(url=item["photo"]["url"])
 
-        embed.add_field(name="💰 Prix", value=f"{item['price']} ", inline=True)
+        embed.add_field(name="💰 Prix", value=item["price"], inline=True)
+        embed.add_field(name="📏 Taille", value=item["size_title"], inline=True)
+        embed.add_field(name="⚡ État", value=item["etat"], inline=True)
         embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
-        embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
 
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
@@ -140,4 +141,3 @@ async def on_ready():
 # START BOT
 # ==============================
 bot.run(TOKEN)
-
