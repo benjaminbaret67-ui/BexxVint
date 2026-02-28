@@ -14,7 +14,7 @@ if not TOKEN:
     raise ValueError("La variable d'environnement TOKEN n'est pas définie !")
 
 # ==============================
-# CHANNELS (mets ici les bons IDs)
+# CHANNELS
 # ==============================
 CHANNELS = {
     "tshirt": 1476944679776944249,
@@ -62,13 +62,13 @@ def detect_category(title: str):
         return "sweat"
     elif "doudoune" in title or "veste" in title:
         return "doudoune"
-    elif "pantalon" in title:
+    elif "pantalon" in title or "jean" in title:
         return "pantalon"
-    elif "chaussure" in title:
+    elif "chaussure" in title or "basket" in title:
         return "chaussure"
     elif "tech" in title:
         return "niketech"
-    return None
+    return "autre"  # fallback pour tous les autres
 
 # ==============================
 # MAIN LOOP
@@ -79,7 +79,7 @@ async def monitor_vinted():
     print("🔎 Recherche nouveaux items...")
 
     try:
-        items = get_vinted_items()  # scraping direct
+        items = get_vinted_items()
     except Exception as e:
         print("❌ Erreur récupération Vinted :", e)
         return
@@ -93,19 +93,14 @@ async def monitor_vinted():
             continue
 
         category = detect_category(item["title"])
-        if not category:
-            continue
+        channel_id = CHANNELS.get(category)
+        channel = bot.get_channel(channel_id)
+        print(f"Item: {item['title']} -> catégorie: {category} -> Channel: {channel}")
 
-        channel = bot.get_channel(CHANNELS.get(category))
         if not channel:
-            print(f"❌ Channel introuvable pour la catégorie {category} (ID: {CHANNELS.get(category)})")
+            print("⚠️ Channel introuvable pour cette catégorie")
             continue
-        else:
-            print(f"✅ Envoi dans le salon {channel.name} ({category})")
 
-        # ==============================
-        # EMBED DISCORD
-        # ==============================
         embed = discord.Embed(
             title=f"🔥 {item['title']}",
             url=item["url"],
@@ -118,7 +113,7 @@ async def monitor_vinted():
         embed.add_field(name="💰 Prix", value=item.get("price", "N/A"), inline=True)
         embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="⚡ État", value=item.get("etat", "N/A"), inline=True)
-        embed.add_field(name="👤 Vendeur", value=item.get("user", {}).get("login", "N/A"), inline=True)
+        embed.add_field(name="👤 Vendeur", value=item["user"].get("login", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item.get("created_at", "N/A"), inline=False)
 
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
@@ -138,14 +133,10 @@ async def monitor_vinted():
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user}")
-
-    # Test d'envoi dans le channel "tshirt" au démarrage
+    # Test rapide d'envoi
     test_channel = bot.get_channel(CHANNELS.get("tshirt"))
     if test_channel:
         await test_channel.send("Bot démarré ✅")
-    else:
-        print(f"❌ Impossible de trouver le channel test 'tshirt'")
-
     monitor_vinted.start()
 
 # ==============================
