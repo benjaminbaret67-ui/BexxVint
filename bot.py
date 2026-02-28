@@ -1,11 +1,9 @@
-# bot.py
 import discord
 from discord.ext import commands, tasks
 import json
 import asyncio
 import os
-from scraper import get_vinted_items  # scraper async pour items
-from details_scraper import get_vinted_details  # scraper léger pour vendeur & date
+from scraper import get_vinted_items  # API Vinted
 
 # ==============================
 # TOKEN
@@ -43,7 +41,7 @@ except:
     sent_items = []
 
 # ==============================
-# DISCORD VIEW
+# DISCORD VIEW (BOUTONS)
 # ==============================
 class VintedView(discord.ui.View):
     def __init__(self, item_url):
@@ -102,22 +100,23 @@ async def monitor_vinted():
             continue
 
         # ==============================
-        # Récupération vendeur & date avec details_scraper (requests + BS)
+        # EMBED DISCORD
         # ==============================
-        details = get_vinted_details(item["url"])
-        item["user"]["login"] = details.get("seller", "N/A")
-        item["created_at"] = details.get("date_added", "N/A")
-
         embed = discord.Embed(
             title=f"🔥 {item['title']}",
+            url=item["url"],
             color=0xff0000
         )
-        embed.add_field(name="💰 Prix", value=f"{item['price']}", inline=True)
+
+        # PHOTO EN PRIORITÉ
+        if item["photo"]["url"]:
+            embed.set_image(url=item["photo"]["url"])
+
+        embed.add_field(name="💰 Prix", value=f"{item['price']} €", inline=True)
         embed.add_field(name="👤 Vendeur", value=item["user"]["login"], inline=True)
         embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
         embed.add_field(name="📅 Ajouté", value=item["created_at"], inline=False)
-        if item["photo"]["url"]:
-            embed.set_image(url=item["photo"]["url"])
+
         embed.set_footer(text="🛍️ BexxVint Nike Monitor")
 
         view = VintedView(item["url"])
@@ -127,7 +126,7 @@ async def monitor_vinted():
         with open("data.json", "w") as f:
             json.dump(sent_items, f)
 
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
 # ==============================
 # READY EVENT
