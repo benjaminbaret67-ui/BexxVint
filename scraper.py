@@ -1,7 +1,10 @@
 import requests
-import urllib3
+import os
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+BRIGHT_HOST = os.getenv("BRIGHT_HOST")
+BRIGHT_PORT = os.getenv("BRIGHT_PORT")
+BRIGHT_USER = os.getenv("BRIGHT_USER")
+BRIGHT_PASS = os.getenv("BRIGHT_PASS")
 
 async def get_vinted_items():
     url = "https://www.vinted.fr/api/v2/catalog/items"
@@ -10,6 +13,13 @@ async def get_vinted_items():
         "search_text": "nike",
         "order": "newest_first",
         "per_page": 20
+    }
+
+    proxy_url = f"http://{BRIGHT_USER}:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}"
+
+    proxies = {
+        "http": proxy_url,
+        "https": proxy_url
     }
 
     headers = {
@@ -22,14 +32,14 @@ async def get_vinted_items():
             url,
             headers=headers,
             params=params,
-            timeout=15,
-            verify=False
+            proxies=proxies,
+            timeout=30
         )
 
         print("STATUS CODE:", response.status_code)
 
         if response.status_code != 200:
-            print("❌ Mauvais status code")
+            print(response.text[:200])
             return []
 
         data = response.json()
@@ -51,5 +61,5 @@ async def get_vinted_items():
         return items_list
 
     except Exception as e:
-        print("❌ Erreur API Vinted:", e)
+        print("❌ BrightData error:", e)
         return []
