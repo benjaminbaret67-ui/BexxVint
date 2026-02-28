@@ -1,65 +1,117 @@
-import requests
+# scraper.py
 import os
+import requests
+from bs4 import BeautifulSoup
 
+# ==============================
+# BRIGHTDATA ENV VARIABLES
+# ==============================
 BRIGHT_HOST = os.getenv("BRIGHT_HOST")
 BRIGHT_PORT = os.getenv("BRIGHT_PORT")
 BRIGHT_USER = os.getenv("BRIGHT_USER")
 BRIGHT_PASS = os.getenv("BRIGHT_PASS")
 
+proxies = {
+    "http": f"http://{BRIGHT_USER}:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}",
+    "https": f"http://{BRIGHT_USER}:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}"
+}
+
+# ==============================
+# MAIN FUNCTION
+# ==============================
 async def get_vinted_items():
-    url = "https://www.vinted.fr/api/v2/catalog/items"
-
-    params = {
-        "search_text": "nike",
-        "order": "newest_first",
-        "per_page": 20
-    }
-
-    proxy_url = f"http://{BRIGHT_USER}:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}"
-
-    proxies = {
-        "http": proxy_url,
-        "https": proxy_url
-    }
+    url = "https://www.vinted.fr/catalog?search_text=nike&order=newest_first"
+    items_list = []
 
     headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept-Language": "fr-FR,fr;q=0.9",
     }
 
     try:
         response = requests.get(
             url,
             headers=headers,
-            params=params,
             proxies=proxies,
-            timeout=30
+            timeout=25,
+            verify=False
         )
 
         print("STATUS CODE:", response.status_code)
 
         if response.status_code != 200:
-            print(response.text[:200])
+            print("❌ Mauvais status code")
             return []
 
-        data = response.json()
+        soup = BeautifulSoup(response.text, "html.parser")
 
-        items_list = []
+        cards = soup.select("a.new-item-box__overlay--clickable")
 
-        for item in data.get("items", []):
-            items_list.append({
-                "id": item["id"],
-                "title": item["title"],
-                "price": item["price"]["amount"] + " €",
-                "url": item["url"],
-                "photo": {"url": item["photo"]["url"] if item.get("photo") else ""},
-                "user": {"login": item["user"]["login"]},
-                "created_at": item["created_at_ts"],
-                "size_title": item.get("size_title", "N/A")
-            })
+        for card in cards:
+            try:
+                link = card.get("href")
+                if not link:
+                    continue
 
+                if link.startswith("/"):
+                    link = "https://www.vinted.fr" + link
+
+                info = card.get("title", "")
+                if not info:
+                    continue
+
+                # =========================
+                # Titre
+                # =========================
+                title = info.split(", état:")[0].strip()
+
+                # =========================
+                # Taille
+                # =========================
+                size_title = "N/A"
+                if "taille:" in info:
+                    try:
+                        size_title = info.split("taille:")[1].split(",")[0].strip()
+                    except:
+                        pass
+
+                # =========================
+                # Prix
+                # =========================
+                price = "N/A"
+                parts = [p for p in info.split(",") if "€" in p]
+                if parts:
+                    price = parts[-1].split("€")[0].strip() + "€"
+
+                # =========================
+                # Image
+                # =========================
+                img_tag = card.find("img")
+                img_url = img_tag["src"] if img_tag and img_tag.get("src") else ""
+
+                # =========================
+                # Item ID
+                # =========================
+                item_id = link.split("/items/")[-1].split("-")[0]
+
+                items_list.append({
+                    "id": item_id,
+                    "title": title,
+                    "price": price,
+                    "url": link,
+                    "photo": {"url": img_url},
+                    "user": {"login": "N/A"},   # On ne scrape plus le vendeur (trop lourd)
+                    "created_at": "N/A",
+                    "size_title": size_title
+                })
+
+            except Exception:
+                continue
+
+        print("✅ Items trouvés:", len(items_list))
         return items_list
 
     except Exception as e:
-        print("❌ BrightData error:", e)
+        print("❌ Erreur scraper Vinted:", e)
         return []
