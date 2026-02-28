@@ -1,108 +1,72 @@
 # scraper.py
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 import os
 import requests
+import json
+from bs4 import BeautifulSoup
 
-# ==============================
-# BRIGHTDATA ENV
-# ==============================
-BRIGHT_HOST = os.getenv("BRIGHT_HOST")
-BRIGHT_PORT = os.getenv("BRIGHT_PORT")
-BRIGHT_USER = os.getenv("BRIGHT_USER")
-BRIGHT_PASS = os.getenv("BRIGHT_PASS")
+BRIGHT_API_KEY = os.getenv("BRIGHT_API_KEY")
+BRIGHT_ZONE = os.getenv("BRIGHT_ZONE")
+TARGET_URL = os.getenv("TARGET_URL")
 
-proxies = {
-    "http": f"http://{BRIGHT_USER}:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}",
-    "https": f"http://{BRIGHT_USER}:{BRIGHT_PASS}@{BRIGHT_HOST}:{BRIGHT_PORT}"
-}
-
-# ==============================
-# MAIN FUNCTION
-# ==============================
 async def get_vinted_items():
-    url = "https://www.vinted.fr/api/v2/catalog/items"
-
-    headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json",
-        "Accept-Language": "fr-FR,fr;q=0.9",
-        "X-Requested-With": "XMLHttpRequest",
-        "Referer": "https://www.vinted.fr/"
-    }
-
-    params = {
-        "search_text": "nike",
-        "order": "newest_first",
-        "per_page": 50,
-        "page": 1
-    }
-
     try:
-        response = requests.get(
-            url,
-            headers=headers,
-            params=params,
-            proxies=proxies,
-            timeout=25,
-            verify=False
+        response = requests.post(
+            "https://api.brightdata.com/request",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {BRIGHT_API_KEY}"
+            },
+            json={
+                "zone": BRIGHT_ZONE,
+                "url": TARGET_URL,
+                "format": "raw"
+            },
+            timeout=40
         )
 
         print("STATUS CODE:", response.status_code)
 
         if response.status_code != 200:
-            print("❌ Mauvais status code")
+            print("❌ BrightData error:", response.text)
             return []
 
-        data = response.json()
+        html = response.text
+        soup = BeautifulSoup(html, "html.parser")
 
-        if "items" not in data:
-            print("❌ Structure JSON inattendue")
+        script_tag = soup.find("script", id="__NEXT_DATA__")
+        if not script_tag:
+            print("❌ __NEXT_DATA__ non trouvé")
             return []
+
+        data = json.loads(script_tag.string)
+
+        items = (
+            data
+            .get("props", {})
+            .get("pageProps", {})
+            .get("catalogItems", {})
+            .get("items", [])
+        )
 
         items_list = []
 
-        for item in data["items"]:
-            try:
-                item_id = str(item["id"])
-                title = item.get("title", "N/A")
-                price = f'{item.get("price", "N/A")}€'
-                url_item = item.get("url", f"https://www.vinted.fr/items/{item_id}")
+        for item in items:
+            item_id = str(item["id"])
 
-                # IMAGE HD
-                photo_url = ""
-                if item.get("photo"):
-                    photo_url = item["photo"].get("url", "")
-
-                # VENDEUR
-                seller = "N/A"
-                if item.get("user"):
-                    seller = item["user"].get("login", "N/A")
-
-                # DATE
-                created_at = item.get("created_at_ts", "N/A")
-
-                # TAILLE
-                size_title = item.get("size_title", "N/A")
-
-                items_list.append({
-                    "id": item_id,
-                    "title": title,
-                    "price": price,
-                    "url": url_item,
-                    "photo": {"url": photo_url},
-                    "user": {"login": seller},
-                    "created_at": str(created_at),
-                    "size_title": size_title
-                })
-
-            except Exception:
-                continue
+            items_list.append({
+                "id": item_id,
+                "title": item.get("title", "N/A"),
+                "price": f'{item.get("price", "N/A")}€',
+                "url": f"https://www.vinted.fr/items/{item_id}",
+                "photo": {"url": item.get("photo", {}).get("url", "")},
+                "user": {"login": item.get("user", {}).get("login", "N/A")},
+                "created_at": item.get("createdAt", "N/A"),
+                "size_title": item.get("size_title", "N/A")
+            })
 
         print("✅ Items trouvés:", len(items_list))
         return items_list
 
     except Exception as e:
-        print("❌ Erreur scraper Vinted:", e)
+        print("❌ Erreur scraper:", e)
         return []
