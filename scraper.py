@@ -1,3 +1,5 @@
+import urllib3
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -23,10 +25,10 @@ async def get_vinted_items():
 
     try:
         response = requests.get(
-            url,
-            headers=headers,
-            proxies=proxies,
-            timeout=20
+        url,
+        headers=headers,
+        timeout=15,
+        verify=False  # 👈 AJOUTE ÇA
         )
 
         print("STATUS CODE:", response.status_code)
