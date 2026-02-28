@@ -13,14 +13,14 @@ def get_vinted_items():
     headers = {
         "Authorization": f"Bearer {BRIGHT_API_KEY}",
         "Content-Type": "application/json",
-        # x-unblock-expect doit être ici directement
+        # x-unblock-expect pour JS rendering
         "x-unblock-expect": '{"element": ".feed-grid__item"}'
     }
 
     payload = {
         "zone": BRIGHT_ZONE,
         "url": TARGET_URL,
-        "format": "raw"
+        "format": "raw"  # HTML brut
     }
 
     try:
@@ -30,11 +30,13 @@ def get_vinted_items():
         print("❌ Erreur Bright Data :", e.response.status_code)
         print("BODY:", e.response.text[:500])
         return []
+    except Exception as e:
+        print("❌ Erreur Bright Data :", e)
+        return []
 
-    data = response.json()
-    html = data.get("body", "")
+    html = response.text
     if not html:
-        print("❌ __NEXT_DATA__ ou body vide")
+        print("❌ Body vide")
         return []
 
     # Parsing HTML
@@ -50,7 +52,7 @@ def get_vinted_items():
 
             info = card.get("title", "")
             if not info:
-                continue
+                info = card.text
 
             title = info.split(", état:")[0].strip()
             size_title = "N/A"
