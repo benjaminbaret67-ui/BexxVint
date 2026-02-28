@@ -1,4 +1,3 @@
-# scraper.py
 import os
 import requests
 from bs4 import BeautifulSoup
@@ -47,17 +46,17 @@ def get_vinted_items():
     # Récupère tous les items visibles
     for item_div in soup.select(".feed-grid__item"):
         try:
-            title_tag = item_div.select_one(".feed-grid__item-title")
-            title = title_tag.get_text(strip=True) if title_tag else "N/A"
+            title_text = item_div.select_one(".feed-grid__item-title")
+            title_text = title_text.get_text(strip=True) if title_text else "N/A"
 
-            price_tag = item_div.select_one(".feed-grid__item-price")
-            price = price_tag.get_text(strip=True) if price_tag else "N/A"
+            price_text = item_div.select_one(".feed-grid__item-price")
+            price_text = price_text.get_text(strip=True) if price_text else "N/A"
 
-            etat_tag = item_div.select_one(".feed-grid__item-condition")
-            etat = etat_tag.get_text(strip=True) if etat_tag else "N/A"
+            etat_text = item_div.select_one(".feed-grid__item-condition")
+            etat_text = etat_text.get_text(strip=True) if etat_text else "N/A"
 
-            size_tag = item_div.select_one(".feed-grid__item-size")
-            size = size_tag.get_text(strip=True) if size_tag else "N/A"
+            size_text = item_div.select_one(".feed-grid__item-size")
+            size_text = size_text.get_text(strip=True) if size_text else "N/A"
 
             url_tag = item_div.select_one("a[href]")
             item_url = f"https://www.vinted.fr{url_tag['href']}" if url_tag else "N/A"
@@ -66,23 +65,23 @@ def get_vinted_items():
             photo_url = photo_tag["src"] if photo_tag else ""
 
             user_tag = item_div.select_one(".feed-grid__item-user")
-            user_login = user_tag.get_text(strip=True) if user_tag else "N/A"
+            user_text = user_tag.get_text(strip=True) if user_tag else "N/A"
 
             created_tag = item_div.select_one(".feed-grid__item-date")
-            created_at = created_tag.get_text(strip=True) if created_tag else "N/A"
+            created_text = created_tag.get_text(strip=True) if created_tag else "N/A"
 
             item_id = item_div.get("data-id", item_url)
 
             items_list.append({
                 "id": item_id,
-                "title": title,
-                "price": price,
-                "size_title": size,
-                "etat": etat,
+                "title": title_text,
+                "price": price_text,
+                "size_title": size_text,
+                "etat": etat_text,
                 "url": item_url,
                 "photo": {"url": photo_url},
-                "user": {"login": user_login},
-                "created_at": created_at
+                "user": {"login": user_text},
+                "created_at": created_text
             })
         except Exception as e:
             print("⚠️ Erreur parse item :", e)
@@ -90,7 +89,6 @@ def get_vinted_items():
 
     print(f"✅ Items trouvés: {len(items_list)}")
     return items_list
-
 
 # ==============================
 # Test rapide
