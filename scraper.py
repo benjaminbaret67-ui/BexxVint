@@ -32,36 +32,51 @@ def get_vinted_items():
         print("❌ Erreur Bright Data:", e)
         return []
 
-    html = response.text
+    # Bright Data renvoie un JSON avec body dedans
+    data = response.json()
 
-    # On récupère le JSON interne de Vinted
-    match = re.search(r'<script id="__NEXT_DATA__".*?>(.*?)</script>', html)
+    if "body" not in data:
+        print("❌ Pas de body dans la réponse Bright Data")
+        return []
+
+    html = data["body"]
+
+    # On récupère le JSON NextJS de Vinted
+    match = re.search(r'<script id="__NEXT_DATA__" type="application/json">(.*?)</script>', html)
 
     if not match:
         print("❌ __NEXT_DATA__ non trouvé")
         return []
 
     try:
-        data = json.loads(match.group(1))
-        items = data["props"]["pageProps"]["catalogItems"]["items"]
+        json_data = json.loads(match.group(1))
     except Exception as e:
         print("❌ Erreur parsing JSON:", e)
+        return []
+
+    try:
+        items = json_data["props"]["pageProps"]["catalog"]["items"]
+    except Exception as e:
+        print("❌ Structure JSON inconnue:", e)
         return []
 
     items_list = []
 
     for item in items:
-        items_list.append({
-            "id": str(item.get("id")),
-            "title": item.get("title", "N/A"),
-            "price": str(item.get("price", {}).get("amount", "N/A")) + "€",
-            "size_title": item.get("size_title", "N/A"),
-            "etat": item.get("status", "N/A"),
-            "url": f"https://www.vinted.fr/items/{item.get('id')}",
-            "photo": {"url": item.get("photo", {}).get("url", "")},
-            "user": {"login": item.get("user", {}).get("login", "N/A")},
-            "created_at": item.get("created_at", "N/A")
-        })
+        try:
+            items_list.append({
+                "id": item.get("id"),
+                "title": item.get("title", "N/A"),
+                "price": f"{item.get('price', {}).get('amount', 'N/A')}€",
+                "size_title": item.get("size_title", "N/A"),
+                "etat": item.get("status", "N/A"),
+                "url": f"https://www.vinted.fr/items/{item.get('id')}",
+                "photo": {"url": item.get("photo", {}).get("url", "")},
+                "user": {"login": item.get("user", {}).get("login", "N/A")},
+                "created_at": item.get("created_at_ts", "N/A")
+            })
+        except Exception:
+            continue
 
     print(f"✅ Items trouvés: {len(items_list)}")
     return items_list
