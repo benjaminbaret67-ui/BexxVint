@@ -139,6 +139,16 @@ async def monitor_vinted():
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user}")
+    
+    print("===== SERVEURS =====")
+    for guild in bot.guilds:
+        print(f"Serveur: {guild.name} (ID: {guild.id})")
+        
+        print("Salons disponibles :")
+        for channel in guild.text_channels:
+            print(f" - {channel.name} ({channel.id})")
+    
     monitor_vinted.start()
 
 bot.run(TOKEN)
+
