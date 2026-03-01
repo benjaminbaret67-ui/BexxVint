@@ -1,109 +1,162 @@
 import discord
 from discord.ext import commands, tasks
-import asyncio
+import requests
+import json
 import os
-from scraper import get_vinted_items
+
+TOKEN = "TON_TOKEN_ICI"
 
 # ==============================
-# TOKEN DISCORD
+# CONFIGURATION
 # ==============================
-TOKEN = os.environ.get("TOKEN")
-if not TOKEN:
-    raise ValueError("La variable TOKEN n'est pas définie !")
 
-# ==============================
-# CHANNELS (TES VRAIS IDs)
-# ==============================
-CHANNELS = {
+SEARCH_URL = "https://www.vinted.fr/api/v2/catalog/items"
+
+PARAMS = {
+    "search_text": "nike",
+    "order": "newest_first",
+    "currency": "EUR",
+    "per_page": 50
+}
+
+HEADERS = {
+    "User-Agent": "Mozilla/5.0",
+    "Accept": "application/json"
+}
+
+CATEGORY_CHANNELS = {
     "tshirt": 1476944679776944249,
-    "sweat": 1476945026968981584,
-    "doudoune": 1476945120669466664,
+    "pull": 1476945026968981584,
+    "veste": 1476945120669466664,
     "pantalon": 1476945217058766912,
     "chaussure": 1476945337829818421,
-    "niketech": 1476945463306489868
+    "nike-tech": 1476945463306489868,
+    "autre": 1476944679776944249
 }
 
 # ==============================
-# BOT CONFIG
+# DISCORD SETUP
 # ==============================
+
 intents = discord.Intents.default()
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# On garde les IDs en mémoire seulement
-sent_items = set()
+# ==============================
+# LOAD DATA
+# ==============================
+
+try:
+    with open("data.json", "r") as f:
+        sent_items = set(json.load(f))
+except:
+    sent_items = set()
 
 # ==============================
 # CATEGORY DETECTION
 # ==============================
-def detect_category(title: str):
+
+def detect_category(title):
     title = title.lower()
 
-    if "t-shirt" in title or "tee" in title:
+    if "t-shirt" in title:
         return "tshirt"
-    if "sweat" in title or "hoodie" in title or "pull" in title:
-        return "sweat"
-    if "doudoune" in title or "veste" in title:
-        return "doudoune"
-    if "pantalon" in title or "jogger" in title:
+    elif "pull" in title or "sweat" in title:
+        return "pull"
+    elif "veste" in title or "doudoune" in title:
+        return "veste"
+    elif "pantalon" in title or "jogging" in title:
         return "pantalon"
-    if "chaussure" in title or "sneaker" in title:
+    elif "chaussure" in title or "sneaker" in title:
         return "chaussure"
-    if "tech" in title:
-        return "niketech"
-
-    return None
+    elif "tech" in title:
+        return "nike-tech"
+    else:
+        return "autre"
 
 # ==============================
-# MAIN LOOP
+# BUTTON VIEW
 # ==============================
+
+class VintedView(discord.ui.View):
+    def __init__(self, item_url):
+        super().__init__(timeout=None)
+        self.add_item(discord.ui.Button(label="🔎 Voir l'annonce", url=item_url))
+
+# ==============================
+# MONITOR TASK
+# ==============================
+
 @tasks.loop(seconds=30)
 async def monitor_vinted():
-    global sent_items
     print("🔎 Recherche nouveaux items...")
 
-    items = get_vinted_items()
+    try:
+        response = requests.get(SEARCH_URL, headers=HEADERS, params=PARAMS)
+        data = response.json()
+        items = data.get("items", [])
 
-    print("Nombre d'items reçus:", len(items))
+        print(f"✅ Items trouvés: {len(items)}")
 
-    for item in items:
-        print("----")
-        print("ID:", item.get("id"))
-        print("Titre:", item.get("title"))
+        for item in items:
 
-        if item.get("id") in sent_items:
-            print("⏭ Déjà envoyé")
-            continue
+            item_id = str(item["id"])
 
-        category = detect_category(item.get("title", ""))
-        print("Catégorie détectée:", category)
+            if item_id in sent_items:
+                continue
 
-        channel_id = CHANNELS.get(category)
-        print("Channel ID:", channel_id)
+            title = item.get("title", "N/A")
+            price = item.get("price", "N/A")
+            url = item.get("url", "")
+            photo = item.get("photo", {}).get("url", None)
+            size = item.get("size_title", "N/A")
+            status = item.get("status", "N/A")
 
-        channel = bot.get_channel(channel_id)
-        print("Channel objet:", channel)
+            category = detect_category(title)
+            channel_id = CATEGORY_CHANNELS.get(category)
 
-        if channel is None:
-            print("❌ Channel introuvable")
-            continue
+            if not channel_id:
+                print("❌ Channel introuvable")
+                continue
 
-        print("✅ ENVOI MESSAGE")
+            channel = bot.get_channel(channel_id)
 
-        embed = discord.Embed(
-            title=item.get("title", "N/A"),
-            url=item.get("url", ""),
-            color=0xff0000
-        )
+            if not channel:
+                print("❌ Channel object introuvable")
+                continue
 
-        await channel.send(embed=embed)
+            embed = discord.Embed(
+                title=f"🔥 {title}",
+                url=url,
+                color=0xff0000
+            )
 
-        sent_items.append(item.get("id"))
+            embed.add_field(name="💰 Prix", value=f"{price} €", inline=True)
+            embed.add_field(name="📏 Taille", value=size, inline=True)
+            embed.add_field(name="⚡ État", value=status, inline=True)
 
-    print("FIN LOOP")
+            if photo:
+                embed.set_image(url=photo)
+
+            embed.set_footer(text="🛍️ BexxVint Nike Monitor")
+
+            view = VintedView(url)
+
+            await channel.send(embed=embed, view=view)
+
+            print("✅ ENVOYÉ :", title)
+
+            sent_items.add(item_id)
+
+        with open("data.json", "w") as f:
+            json.dump(list(sent_items), f)
+
+    except Exception as e:
+        print("❌ Erreur :", e)
 
 # ==============================
-# READY
+# EVENTS
 # ==============================
+
 @bot.event
 async def on_ready():
     print(f"✅ Connecté en tant que {bot.user}")
@@ -112,5 +165,5 @@ async def on_ready():
 # ==============================
 # START
 # ==============================
-bot.run(TOKEN)
 
+bot.run(TOKEN)
