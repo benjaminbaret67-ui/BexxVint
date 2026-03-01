@@ -58,53 +58,48 @@ def detect_category(title: str):
 # ==============================
 @tasks.loop(seconds=30)
 async def monitor_vinted():
+    global sent_items
     print("🔎 Recherche nouveaux items...")
 
     items = get_vinted_items()
 
-    if not items:
-        print("❌ Aucun item récupéré.")
-        return
+    print("Nombre d'items reçus:", len(items))
 
     for item in items:
+        print("----")
+        print("ID:", item.get("id"))
+        print("Titre:", item.get("title"))
 
-        # Skip si déjà envoyé pendant cette session
-        if item["id"] in sent_items:
+        if item.get("id") in sent_items:
+            print("⏭ Déjà envoyé")
             continue
 
-        category = detect_category(item["title"])
-        if not category:
-            continue
+        category = detect_category(item.get("title", ""))
+        print("Catégorie détectée:", category)
 
         channel_id = CHANNELS.get(category)
-        channel = bot.get_channel(channel_id)
+        print("Channel ID:", channel_id)
 
-        if not channel:
-            print(f"⚠️ Channel introuvable pour {category}")
+        channel = bot.get_channel(channel_id)
+        print("Channel objet:", channel)
+
+        if channel is None:
+            print("❌ Channel introuvable")
             continue
 
+        print("✅ ENVOI MESSAGE")
+
         embed = discord.Embed(
-            title=item["title"],
-            url=item["url"],
+            title=item.get("title", "N/A"),
+            url=item.get("url", ""),
             color=0xff0000
         )
 
-        if item["photo"]["url"]:
-            embed.set_image(url=item["photo"]["url"])
-
-        embed.add_field(name="💰 Prix", value=item.get("price", "N/A"), inline=True)
-        embed.add_field(name="📏 Taille", value=item.get("size_title", "N/A"), inline=True)
-        embed.add_field(name="⚡ État", value=item.get("etat", "N/A"), inline=True)
-        embed.add_field(name="👤 Vendeur", value=item.get("user", {}).get("login", "N/A"), inline=True)
-        embed.add_field(name="📅 Ajouté", value=item.get("created_at", "N/A"), inline=False)
-
-        embed.set_footer(text="🛍️ BexxVint Monitor")
-
         await channel.send(embed=embed)
 
-        sent_items.add(item["id"])
+        sent_items.append(item.get("id"))
 
-        await asyncio.sleep(1)
+    print("FIN LOOP")
 
 # ==============================
 # READY
@@ -118,3 +113,4 @@ async def on_ready():
 # START
 # ==============================
 bot.run(TOKEN)
+
