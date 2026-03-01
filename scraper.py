@@ -20,38 +20,18 @@ def get_vinted_items():
     payload = {
         "zone": UNLOCKER_ZONE,
         "url": TARGET_URL,
-        "format": "json"  # 🔥 IMPORTANT
+        "format": "json"
     }
 
-    try:
-        response = requests.post(url, headers=headers, json=payload, timeout=60)
-        response.raise_for_status()
-        data = response.json()
-    except Exception as e:
-        print("❌ Erreur Bright Data :", e)
-        return []
+    response = requests.post(url, headers=headers, json=payload, timeout=60)
+    response.raise_for_status()
 
-    items = []
+    data = response.json()
 
-    try:
-        catalog_items = data["props"]["pageProps"]["catalogItems"]
+    print("===== DEBUG JSON =====")
+    print(type(data))
+    print(data.keys() if isinstance(data, dict) else "Not dict")
+    print(str(data)[:1000])
+    print("======================")
 
-        for item in catalog_items:
-            items.append({
-                "id": item["id"],
-                "title": item["title"],
-                "price": f"{item['price']['amount']} {item['price']['currency_code']}",
-                "size_title": item.get("size_title", "N/A"),
-                "etat": item.get("status", "N/A"),
-                "url": f"https://www.vinted.fr/items/{item['id']}",
-                "photo": {"url": item["photo"]["url"] if item.get("photo") else ""},
-                "user": {"login": item["user"]["login"] if item.get("user") else "N/A"},
-                "created_at": item.get("created_at_ts", "N/A")
-            })
-
-    except Exception as e:
-        print("❌ Erreur parsing JSON:", e)
-        return []
-
-    print(f"✅ Items trouvés: {len(items)}")
-    return items
+    return []
