@@ -4,7 +4,7 @@ import requests
 import json
 import os
 
-TOKEN = "TON_TOKEN_ICI"
+TOKEN = os.environ.get("TOKEN")
 
 # ==============================
 # CONFIGURATION
@@ -167,3 +167,4 @@ async def on_ready():
 # ==============================
 
 bot.run(TOKEN)
+
